@@ -4,4 +4,4 @@
 
 ## How to use
 
-`npm start`
+Terminal enter: `npm start`
