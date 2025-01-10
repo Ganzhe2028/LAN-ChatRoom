@@ -4,4 +4,4 @@
 
 ## How to use
 
-Terminal enter: `npm start`
+Type `npm start` in the terminal
