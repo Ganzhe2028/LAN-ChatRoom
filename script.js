@@ -10,23 +10,55 @@ const messagesDiv = document.querySelector('.messages');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 
+// 获取DOM元素
+const loginForm = document.getElementById('loginForm');
+const chatContainer = document.getElementById('chatContainer');
+
+// 检查本地存储中是否有用户名
+const storedUser = localStorage.getItem('chatUsername');
+if (storedUser) {
+  currentUser = storedUser;
+  loginForm.classList.add('hidden');
+  chatContainer.classList.remove('hidden');
+  connectWebSocket();
+}
+
 // 登录处理
-loginBtn.addEventListener('click', () => {
-  username = usernameInput.value.trim();
+loginForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const username = usernameInput.value.trim();
   if (username) {
-    connectToServer();
-    loginSection.classList.add('hidden');
-    chatSection.classList.remove('hidden');
-  } else {
-    alert('请输入用户名');
+    currentUser = username;
+    // 保存用户名到localStorage
+    localStorage.setItem('chatUsername', username);
+    loginForm.classList.add('hidden');
+    chatContainer.classList.remove('hidden');
+    connectWebSocket();
   }
 });
 
+// 登出处理
+function logout() {
+  localStorage.removeItem('chatUsername');
+  location.reload();
+}
+
+// 添加登出按钮
+const logoutButton = document.createElement('button');
+logoutButton.textContent = '登出';
+logoutButton.classList.add('logout-btn');
+logoutButton.onclick = logout;
+document.querySelector('.container').appendChild(logoutButton);
+
 // 连接WebSocket服务器
-function connectToServer() {
+function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.hostname;
-  const port = window.location.port || (protocol === 'wss:' ? 443 : 80);
+  const host = window.location.hostname === 'localhost' 
+    ? window.location.hostname 
+    : window.location.hostname.split(':')[0];
+  const port = window.location.port || (protocol === 'wss:' ? 443 : 8081);
+  socket = new WebSocket(`${protocol}//${host}:${port}`);
+
   socket = new WebSocket(`${protocol}//${host}:${port}`);
 
   socket.onopen = () => {
@@ -35,8 +67,16 @@ function connectToServer() {
   };
 
   socket.onmessage = (event) => {
-    const message = JSON.parse(event.data);
-    displayMessage(message);
+    const data = JSON.parse(event.data);
+    if (data.type === 'history') {
+      // 显示历史消息
+      data.messages.forEach(message => {
+        displayMessage(message);
+      });
+    } else {
+      // 显示实时消息
+      displayMessage(data);
+    }
   };
 
   socket.onclose = () => {
@@ -54,9 +94,9 @@ messageInput.addEventListener('keypress', (e) => {
 
 function sendMessage() {
   const content = messageInput.value.trim();
-  if (content) {
+  if (content && socket) {
     const message = {
-      username,
+      username: currentUser,
       content,
       time: new Date().toLocaleTimeString()
     };
